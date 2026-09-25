@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  playverse-api:
+    build: .
+    container_name: playverse_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - PORT=5000

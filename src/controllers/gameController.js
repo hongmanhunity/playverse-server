@@ -1,4 +1,6 @@
 const Game = require('../models/Game');
+const Review = require('../models/Review');
+const Wishlist = require('../models/Wishlist');
 const asyncHandler = require('../utils/asyncHandler');
 
 const getGames = asyncHandler(async (req, res) => {
@@ -83,9 +85,83 @@ const getGameById = asyncHandler(async (req, res) => {
   });
 });
 
+const createGame = asyncHandler(async (req, res) => {
+  const { title, thumbnail } = req.body;
+
+  if (!title || !title.trim()) {
+    return res.status(400).json({ success: false, message: 'Tên game không được để trống' });
+  }
+
+  if (!thumbnail || !thumbnail.trim()) {
+    return res.status(400).json({ success: false, message: 'Ảnh đại diện thumbnail là bắt buộc' });
+  }
+
+  const existingGame = await Game.findOne({ title: title.trim() });
+  if (existingGame) {
+    return res.status(400).json({ success: false, message: 'Tựa game này đã tồn tại trong kho' });
+  }
+
+  const game = await Game.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    message: 'Thêm game mới thành công',
+    data: game,
+  });
+});
+
+const updateGame = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (req.body.title) {
+    req.body.slug = req.body.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+  }
+
+  const game = await Game.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!game) {
+    return res.status(404).json({ success: false, message: 'Không tìm thấy tựa game để cập nhật' });
+  }
+
+  res.json({
+    success: true,
+    message: 'Cập nhật game thành công',
+    data: game,
+  });
+});
+
+const deleteGame = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const game = await Game.findById(id);
+  if (!game) {
+    return res.status(404).json({ success: false, message: 'Không tìm thấy tựa game để xóa' });
+  }
+
+  await Promise.all([
+    Game.findByIdAndDelete(id),
+    Review.deleteMany({ game: id }),
+    Wishlist.deleteMany({ game: id }),
+  ]);
+
+  res.json({
+    success: true,
+    message: 'Xóa game và toàn bộ dữ liệu liên quan thành công',
+  });
+});
+
 module.exports = {
   getGames,
   getPopularGames,
   getFlashGames,
   getGameById,
+  createGame,
+  updateGame,
+  deleteGame,
 };

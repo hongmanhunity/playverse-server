@@ -41,4 +41,30 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-module.exports = { protect, optionalAuth };
+//Middleware riêng cho Admin
+const admin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  }
+  else {
+    return res.status(403).json({
+      success: false,
+      message: 'Quyền truy cập bị từ chối: Yêu cầu quyền quản trị viên (Admin)'
+    });
+  }
+};
+
+// Middleware phân quyền theo vai trò
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Quyền truy cập bị từ chối: tài khoản của bạn (${req.user ? req.user.role : 'khách'}) không có quyền thực hiện thao tác này`,
+      });
+    }
+    next();
+  };
+};
+
+module.exports = { protect, optionalAuth, authorize };

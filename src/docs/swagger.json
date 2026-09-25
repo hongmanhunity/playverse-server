@@ -1,0 +1,578 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PlayVerse API Documentation",
+    "version": "1.0.0",
+    "description": "Tài liệu API chính thức của máy chủ PlayVerse Game Store & Community Backend. Hỗ trợ xác thực JWT Bearer, nén dữ liệu và phân quyền RBAC."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Nhập JWT token được cấp từ API login/register (không cần gõ chữ Bearer)"
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Đăng ký tài khoản mới",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "email", "password"],
+                "properties": {
+                  "username": { "type": "string", "example": "alex_gamer" },
+                  "email": { "type": "string", "example": "alex@example.com" },
+                  "password": { "type": "string", "example": "password123" },
+                  "avatar": { "type": "string", "example": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Đăng ký thành công, trả về JWT Token và thông tin user" },
+          "400": { "description": "Dữ liệu không hợp lệ hoặc tài khoản đã tồn tại" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Đăng nhập tài khoản",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "example": "alex@example.com" },
+                  "password": { "type": "string", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Đăng nhập thành công, trả về JWT Token" },
+          "401": { "description": "Email hoặc mật khẩu không chính xác" }
+        }
+      }
+    },
+    "/api/auth/google": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Đăng nhập hoặc đăng ký bằng tài khoản Google",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idToken": { "type": "string", "description": "Google ID Token cấp từ Google Sign-In SDK phía mobile" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Đăng nhập Google thành công" },
+          "401": { "description": "Google idToken không hợp lệ hoặc đã hết hạn" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Lấy thông tin tài khoản hiện tại",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Thông tin cá nhân người dùng" },
+          "401": { "description": "Chưa xác thực Bearer token" }
+        }
+      }
+    },
+    "/api/auth/profile": {
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Cập nhật ảnh đại diện cá nhân",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "avatar": { "type": "string", "example": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cập nhật thành công" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Đổi mật khẩu tài khoản",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["currentPassword", "newPassword"],
+                "properties": {
+                  "currentPassword": { "type": "string", "example": "password123" },
+                  "newPassword": { "type": "string", "example": "newpassword123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Đổi mật khẩu thành công" },
+          "400": { "description": "Mật khẩu không hợp lệ" },
+          "401": { "description": "Mật khẩu hiện tại không đúng" }
+        }
+      }
+    },
+    "/api/games": {
+      "get": {
+        "tags": ["Games"],
+        "summary": "Lấy danh sách game (Hỗ trợ phân trang, tìm kiếm, lọc và sắp xếp)",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Tìm kiếm theo tên game hoặc thể loại" },
+          { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Lọc theo thể loại" },
+          { "name": "tag", "in": "query", "schema": { "type": "string" }, "description": "Lọc theo tag (Popular, Flash, Featured...)" },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["rating", "price-low", "price-high", "discount"] }, "description": "Tiêu chí sắp xếp" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sách game và thông tin phân trang" }
+        }
+      },
+      "post": {
+        "tags": ["Games"],
+        "summary": "Thêm game mới (Chỉ dành cho Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "thumbnail"],
+                "properties": {
+                  "title": { "type": "string", "example": "Counter-Strike 2" },
+                  "publisher": { "type": "string", "example": "Valve" },
+                  "category": { "type": "string", "example": "Action" },
+                  "tags": { "type": "array", "items": { "type": "string" }, "example": ["Popular", "Esports"] },
+                  "price": { "type": "number", "example": 0 },
+                  "discount": { "type": "number", "example": 20 },
+                  "size": { "type": "string", "example": "30 GB" },
+                  "thumbnail": { "type": "string", "example": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tạo game thành công" },
+          "403": { "description": "Không có quyền Admin" }
+        }
+      }
+    },
+    "/api/games/popular": {
+      "get": {
+        "tags": ["Games"],
+        "summary": "Lấy top 10 game thịnh hành (Popular)",
+        "responses": {
+          "200": { "description": "Danh sách game phổ biến" }
+        }
+      }
+    },
+    "/api/games/flash": {
+      "get": {
+        "tags": ["Games"],
+        "summary": "Lấy top 10 game Flash Sale / Giảm giá sốc",
+        "responses": {
+          "200": { "description": "Danh sách game giảm giá" }
+        }
+      }
+    },
+    "/api/games/{id}": {
+      "get": {
+        "tags": ["Games"],
+        "summary": "Lấy chi tiết game bằng ID hoặc Slug",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "ID hoặc slug của game" }
+        ],
+        "responses": {
+          "200": { "description": "Thông tin chi tiết của game" },
+          "404": { "description": "Không tìm thấy game" }
+        }
+      },
+      "put": {
+        "tags": ["Games"],
+        "summary": "Cập nhật thông tin game (Admin only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "price": { "type": "number" },
+                  "discount": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cập nhật thành công" },
+          "403": { "description": "Không có quyền Admin" }
+        }
+      },
+      "delete": {
+        "tags": ["Games"],
+        "summary": "Xóa game và dữ liệu đánh giá/wishlist liên quan (Admin only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xóa game thành công" },
+          "403": { "description": "Không có quyền Admin" }
+        }
+      }
+    },
+    "/api/banners": {
+      "get": {
+        "tags": ["Banners"],
+        "summary": "Lấy danh sách banner trang chủ",
+        "responses": {
+          "200": { "description": "Danh sách banner" }
+        }
+      },
+      "post": {
+        "tags": ["Banners"],
+        "summary": "Tạo banner mới (Admin only)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "image"],
+                "properties": {
+                  "title": { "type": "string", "example": "Siêu Bão Sale Mùa Hè" },
+                  "image": { "type": "string", "example": "https://example.com/banner.jpg" },
+                  "gameId": { "type": "string", "example": "660c1234567890abcdef1234" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tạo banner thành công" },
+          "403": { "description": "Không có quyền Admin" }
+        }
+      }
+    },
+    "/api/banners/{id}": {
+      "delete": {
+        "tags": ["Banners"],
+        "summary": "Xóa banner (Admin only)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xóa banner thành công" },
+          "403": { "description": "Không có quyền Admin" }
+        }
+      }
+    },
+    "/api/reviews/game/{gameId}": {
+      "get": {
+        "tags": ["Reviews"],
+        "summary": "Lấy danh sách đánh giá của tựa game",
+        "parameters": [
+          { "name": "gameId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sách review kèm số sao" }
+        }
+      },
+      "post": {
+        "tags": ["Reviews"],
+        "summary": "Đánh giá game và chấm sao (1-5 sao)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "gameId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["rating", "comment"],
+                "properties": {
+                  "rating": { "type": "number", "minimum": 1, "maximum": 5, "example": 5 },
+                  "comment": { "type": "string", "example": "Game đồ họa siêu đỉnh, cốt truyện cảm động!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Gửi đánh giá thành công" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/leaderboards/global": {
+      "get": {
+        "tags": ["Leaderboards"],
+        "summary": "Lấy bảng xếp hạng top 50 toàn cầu",
+        "responses": {
+          "200": { "description": "Top 50 người chơi điểm cao nhất toàn server" }
+        }
+      }
+    },
+    "/api/leaderboards/game/{gameId}": {
+      "get": {
+        "tags": ["Leaderboards"],
+        "summary": "Lấy bảng xếp hạng top 50 của một game cụ thể",
+        "parameters": [
+          { "name": "gameId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Top 50 người chơi của tựa game" }
+        }
+      }
+    },
+    "/api/leaderboards/score": {
+      "post": {
+        "tags": ["Leaderboards"],
+        "summary": "Nộp điểm chơi game (Tự động cập nhật High Score và tích điểm thưởng)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["score"],
+                "properties": {
+                  "score": { "type": "number", "example": 15400 },
+                  "gameId": { "type": "string", "example": "660c1234567890abcdef1234" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Nộp điểm thành công" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/wishlist": {
+      "get": {
+        "tags": ["Wishlist"],
+        "summary": "Lấy danh sách game yêu thích của người dùng",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Danh sách game yêu thích" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/wishlist/toggle/{gameId}": {
+      "post": {
+        "tags": ["Wishlist"],
+        "summary": "Thêm hoặc bỏ game khỏi danh sách yêu thích",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "gameId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Đã xóa khỏi danh sách yêu thích" },
+          "201": { "description": "Đã thêm vào danh sách yêu thích" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/posts": {
+      "get": {
+        "tags": ["Community Posts"],
+        "summary": "Lấy danh sách bài viết diễn đàn (Có phân trang)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sách bài viết cộng đồng" }
+        }
+      },
+      "post": {
+        "tags": ["Community Posts"],
+        "summary": "Đăng bài viết mới",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "content"],
+                "properties": {
+                  "title": { "type": "string", "example": "Cấu hình tối ưu chơi Black Myth Wukong trên RTX 3060?" },
+                  "content": { "type": "string", "example": "Anh em cho mình hỏi bật DLSS ở mức Quality thì FPS có ổn định không?" },
+                  "gameTitle": { "type": "string", "example": "Black Myth: Wukong" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Đăng bài thành công" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/posts/{id}": {
+      "delete": {
+        "tags": ["Community Posts"],
+        "summary": "Xóa bài viết (Tác giả bài viết hoặc Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xóa bài viết thành công" },
+          "403": { "description": "Không có quyền xóa bài viết này" }
+        }
+      }
+    },
+    "/api/posts/{id}/like": {
+      "post": {
+        "tags": ["Community Posts"],
+        "summary": "Thả tim hoặc bỏ thả tim bài viết",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Tương tác like thành công" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/posts/{id}/comments": {
+      "get": {
+        "tags": ["Community Posts"],
+        "summary": "Lấy danh sách bình luận của bài viết",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sách bình luận" }
+        }
+      },
+      "post": {
+        "tags": ["Community Posts"],
+        "summary": "Bình luận vào bài viết",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": { "type": "string", "example": "Bật DLSS Quality mượt mà 60fps nhé bác!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Gửi bình luận thành công" },
+          "401": { "description": "Chưa đăng nhập" }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Lấy danh sách thông báo hệ thống và sự kiện",
+        "responses": {
+          "200": { "description": "Danh sách thông báo" }
+        }
+      },
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Tạo và phát thông báo mới (Admin only)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["titleText", "message"],
+                "properties": {
+                  "titleText": { "type": "string", "example": "Bão Sale Cuối Tuần PlayVerse" },
+                  "message": { "type": "string", "example": "Giảm giá lên tới 60% cho toàn bộ game!" },
+                  "type": { "type": "string", "enum": ["promotion", "system", "event"], "example": "promotion" },
+                  "badge": { "type": "string", "example": "SALE 60%" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tạo thông báo thành công" },
+          "403": { "description": "Không có quyền Admin" }
+        }
+      }
+    }
+  }
+}

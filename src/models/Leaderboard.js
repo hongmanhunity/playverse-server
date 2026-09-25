@@ -27,4 +27,10 @@ const leaderboardSchema = new mongoose.Schema(
   }
 );
 
+// Chỉ mục kép tối ưu tốc độ truy vấn BXH: lọc theo game và sort điểm giảm dần
+leaderboardSchema.index({ game: 1, score: -1 });
+
+// Mỗi user chỉ có 1 bản ghi điểm cho 1 game (hoặc game: null toàn cầu)
+leaderboardSchema.index({ user: 1, game: 1 }, { unique: true });
+
 module.exports = mongoose.model('Leaderboard', leaderboardSchema);

@@ -128,10 +128,54 @@ const addPostComment = asyncHandler(async (req, res) => {
   });
 });
 
+const deletePost = asyncHandler(async (req, res) => {
+  const post = await Post.findById(req.params.id);
+
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết' });
+  }
+
+  if (post.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa bài viết này' });
+  }
+
+  await Promise.all([
+    Post.findByIdAndDelete(req.params.id),
+    PostComment.deleteMany({ post: req.params.id }),
+  ]);
+
+  res.json({
+    success: true,
+    message: 'Xóa bài viết thành công',
+  });
+});
+
+const deletePostComment = asyncHandler(async (req, res) => {
+  const comment = await PostComment.findById(req.params.commentId);
+
+  if (!comment) {
+    return res.status(404).json({ success: false, message: 'Không tìm thấy bình luận' });
+  }
+
+  if (comment.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa bình luận này' });
+  }
+
+  await PostComment.findByIdAndDelete(req.params.commentId);
+  await Post.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } });
+
+  res.json({
+    success: true,
+    message: 'Xóa bình luận thành công',
+  });
+});
+
 module.exports = {
   getPosts,
   createPost,
   toggleLikePost,
   getPostComments,
   addPostComment,
+  deletePost,
+  deletePostComment,
 };
